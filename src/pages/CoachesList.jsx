@@ -6,6 +6,7 @@ const CoachesList = () => {
   const { user } = useAuth();
   const [coaches, setCoaches] = useState([]);
   const [myInstitution, setMyInstitution] = useState(null);
+  const [institutions, setInstitutions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({
@@ -16,12 +17,17 @@ const CoachesList = () => {
     phone: '',
     document_type: 'dni',
     document_number: '',
+    institution: '',
     specialties: '',
     license_number: '',
   });
-  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const isAdmin = user?.role === 'superadmin';
 
   useEffect(() => {
+    tournamentApi.getAvailableInstitutions()
+      .then(res => setInstitutions(res.data.results || res.data))
+      .catch(() => {});
+
     if (isAdmin) {
       tournamentApi.getCoaches()
         .then(res => setCoaches(res.data.results || res.data))
@@ -44,27 +50,38 @@ const CoachesList = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!myInstitution && !isAdmin) {
-      alert('Debes crear tu institucion primero');
+    let instId = formData.institution || myInstitution?.id;
+    if (!instId && !isAdmin) {
+      try {
+        const res = await tournamentApi.getMyInstitution();
+        instId = res.data?.id;
+        setMyInstitution(res.data);
+      } catch {
+        alert('Debes crear tu institucion primero');
+        return;
+      }
+    }
+    if (!instId && isAdmin) {
+      alert('Selecciona una institucion para el entrenador');
       return;
     }
     try {
       const data = { ...formData };
+      if (instId) data.institution = instId;
       if (editingItem) {
         if (!data.password) delete data.password;
         await tournamentApi.updateCoach(editingItem.id, data);
       } else {
-        if (myInstitution) data.institution = myInstitution.id;
         await tournamentApi.createCoach(data);
       }
       setShowForm(false);
       setEditingItem(null);
-      setFormData({ first_name: '', last_name: '', email: '', password: '', phone: '', document_type: 'dni', document_number: '', specialties: '', license_number: '' });
+      setFormData({ first_name: '', last_name: '', email: '', password: '', phone: '', document_type: 'dni', document_number: '', institution: '', specialties: '', license_number: '' });
       if (isAdmin) {
         const res = await tournamentApi.getCoaches();
         setCoaches(res.data.results || res.data);
-      } else {
-        const res = await tournamentApi.getInstitutionCoaches(myInstitution.id);
+      } else if (instId) {
+        const res = await tournamentApi.getInstitutionCoaches(instId);
         setCoaches(res.data.results || res.data);
       }
     } catch (err) {
@@ -87,6 +104,7 @@ const CoachesList = () => {
       phone: coach.phone || '',
       document_type: coach.document_type || 'dni',
       document_number: coach.document_number || '',
+      institution: coach.institution || '',
       specialties: coach.specialties || '',
       license_number: coach.license_number || '',
     });
@@ -156,6 +174,17 @@ const CoachesList = () => {
             <label>Telefono</label>
             <input type="text" name="phone" value={formData.phone} onChange={handleChange} />
           </div>
+          {isAdmin && (
+            <div className="form-group">
+              <label>Institucion</label>
+              <select name="institution" value={formData.institution || myInstitution?.id || ''} onChange={handleChange}>
+                <option value="">Seleccionar institucion...</option>
+                {institutions.map(i => (
+                  <option key={i.id} value={i.id}>{i.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group">
               <label>Tipo Documento</label>
@@ -185,24 +214,26 @@ const CoachesList = () => {
       )}
 
       <table className="data-table">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Documento</th>
-            <th>Email</th>
-            <th>Especialidades</th>
-            <th>Licencia</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {coaches.map(c => (
-            <tr key={c.id}>
-              <td>{c.user_name}</td>
-              <td>{c.document_number || '-'}</td>
-              <td>{c.user_email}</td>
-              <td>{c.specialties || '-'}</td>
-              <td>{c.license_number || '-'}</td>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Documento</th>
+              <th>Email</th>
+              {isAdmin && <th>Institucion</th>}
+              <th>Especialidades</th>
+              <th>Licencia</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {coaches.map(c => (
+              <tr key={c.id}>
+                <td>{c.user_name}</td>
+                <td>{c.document_number || '-'}</td>
+                <td>{c.user_email}</td>
+                {isAdmin && <td>{c.institution_name || '-'}</td>}
+                <td>{c.specialties || '-'}</td>
+                <td>{c.license_number || '-'}</td>
               <td>
                 <button className="btn-sm" onClick={() => handleEdit(c)} style={{ marginRight: '0.5rem' }}>Editar</button>
                 <button className="btn-sm btn-danger" onClick={() => handleDelete(c.id)}>Eliminar</button>

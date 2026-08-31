@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,30 +6,26 @@ const menuItems = {
   superadmin: [
     { label: 'Dashboard', path: '/dashboard', icon: '📊' },
     { label: 'Usuarios', path: '/dashboard/users', icon: '👥' },
-    { label: 'Disciplinas', path: '/dashboard/config/disciplines', icon: '🏅' },
+    { label: 'Tipos de Prueba', path: '/dashboard/config/disciplines', icon: '🏅' },
     { label: 'Sexos', path: '/dashboard/config/sexes', icon: '⚧' },
     { label: 'Categorias', path: '/dashboard/config/categories', icon: '📋' },
     { label: 'Clasificaciones', path: '/dashboard/config/classifications', icon: '🔬' },
-    { label: 'Tipos Pruebas', path: '/dashboard/config/event-types', icon: '🏃' },
+    { label: 'Disciplinas', path: '/dashboard/config/event-types', icon: '🏃' },
+    { label: 'Organizadores', path: '/dashboard/organizers', icon: '🏛' },
+    { label: 'Torneos por Habilitar', path: '/dashboard/tournament-payments', icon: '💳' },
   ],
   official: [
     { label: 'Dashboard', path: '/dashboard', icon: '📊' },
     { label: 'Clasificaciones Pendientes', path: '/dashboard/classifications', icon: '🔬' },
-  ],
-  admin: [
-    { label: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { label: 'Mi Institucion', path: '/dashboard/institution', icon: '🏛' },
-    { label: 'Mis Torneos', path: '/dashboard/tournaments', icon: '🏆' },
-    { label: 'Crear Torneo', path: '/dashboard/tournaments/new', icon: '➕' },
-    { label: 'Inscripciones', path: '/dashboard/registrations', icon: '📝' },
   ],
   institution: [
     { label: 'Dashboard', path: '/dashboard', icon: '📊' },
     { label: 'Mi Institucion', path: '/dashboard/institution', icon: '🏛' },
     { label: 'Atletas', path: '/dashboard/athletes', icon: '🏃' },
     { label: 'Entrenadores', path: '/dashboard/coaches', icon: '🧑‍🏫' },
-    { label: 'Torneos Activos', path: '/dashboard/tournaments', icon: '🏆' },
-    { label: 'Mis Inscripciones', path: '/dashboard/registrations', icon: '📝' },
+    { label: 'Mis Torneos', path: '/dashboard/tournaments', icon: '🏆' },
+    { label: 'Crear Torneo', path: '/dashboard/tournaments/new', icon: '➕' },
+    { label: 'Inscripciones', path: '/dashboard/registrations', icon: '📝' },
     { label: 'Resultados', path: '/dashboard/results', icon: '📊' },
   ],
   coach: [
@@ -70,7 +66,7 @@ const Layout = () => {
     navigate('/login');
   };
 
-  const items = menuItems[user?.role] || [];
+  let items = menuItems[user?.role] || [];
 
   return (
     <div className="app-layout">

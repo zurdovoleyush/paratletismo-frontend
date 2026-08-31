@@ -59,10 +59,38 @@ const Login = () => {
             {loading ? 'Ingresando...' : 'Iniciar Sesion'}
           </button>
         </form>
+        <div className="auth-actions">
+          <Link to="/tournaments" className="action-btn action-tournaments">
+            <span className="action-icon">🏆</span>
+            <span className="action-text">
+              <strong>Ver Torneos</strong>
+              <small>Torneos publicos</small>
+            </span>
+          </Link>
+          <Link to="/results/en-curso" className="action-btn action-inprogress">
+            <span className="action-icon">📊</span>
+            <span className="action-text">
+              <strong>Resultados en Curso</strong>
+              <small>En progreso</small>
+            </span>
+          </Link>
+          <Link to="/results/finalizados" className="action-btn action-completed">
+            <span className="action-icon">🏁</span>
+            <span className="action-text">
+              <strong>Resultados Finalizados</strong>
+              <small>Completados</small>
+            </span>
+          </Link>
+          <Link to="/records" className="action-btn action-records">
+            <span className="action-icon">🥇</span>
+            <span className="action-text">
+              <strong>Records</strong>
+              <small>Mejores marcas</small>
+            </span>
+          </Link>
+        </div>
         <div className="auth-links">
-          <Link to="/tournaments">Ver Torneos Publicos</Link>
-          <span>|</span>
-          <Link to="/register">Registrarse</Link>
+          <Link to="/register" className="auth-register-link">Registrarse</Link>
         </div>
       </div>
     </div>

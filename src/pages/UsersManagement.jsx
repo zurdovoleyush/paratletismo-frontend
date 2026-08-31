@@ -18,21 +18,26 @@ const UsersManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [filterRole, setFilterRole] = useState('');
+  const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     email: '',
     password: '',
-    role: 'admin',
+    role: 'institution',
   });
 
   useEffect(() => {
-    loadUsers();
-  }, [filterRole]);
+    const timer = setTimeout(() => loadUsers(), 250);
+    return () => clearTimeout(timer);
+  }, [filterRole, search]);
 
   const loadUsers = () => {
     setLoading(true);
-    usersApi.getUsers(filterRole ? { role: filterRole } : {})
+    const params = {};
+    if (filterRole) params.role = filterRole;
+    if (search.trim()) params.q = search.trim();
+    usersApi.getUsers(params)
       .then(res => setUsers(res.data.results || res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -54,14 +59,18 @@ const UsersManagement = () => {
       }
       setShowForm(false);
       setEditingUser(null);
-      setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'admin' });
+      setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'institution' });
       loadUsers();
     } catch (err) {
-      const errors = err.response?.data;
-      if (typeof errors === 'object') {
-        alert(Object.values(errors).flat().join(', '));
+      if (err.response?.data) {
+        const errors = err.response.data;
+        if (typeof errors === 'object') {
+          alert(Object.values(errors).flat().join(', '));
+        } else {
+          alert(String(errors));
+        }
       } else {
-        alert(editingUser ? 'Error al actualizar usuario' : 'Error al crear usuario');
+        alert('Error de conexion: ' + (err.message || 'sin respuesta del servidor'));
       }
     }
   };
@@ -78,12 +87,8 @@ const UsersManagement = () => {
       await usersApi.deleteUser(id);
       loadUsers();
     } catch (err) {
-      const errors = err.response?.data;
-      if (typeof errors === 'object') {
-        alert(Object.values(errors).flat().join(', '));
-      } else {
-        alert('Error al eliminar usuario');
-      }
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Error al eliminar usuario';
+      alert(typeof msg === 'string' ? msg : 'Error al eliminar usuario');
     }
   };
 
@@ -92,21 +97,29 @@ const UsersManagement = () => {
       await usersApi.toggleActive(id);
       loadUsers();
     } catch (err) {
-      alert('Error al actualizar usuario');
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Error al actualizar usuario';
+      alert(typeof msg === 'string' ? msg : 'Error al actualizar usuario');
     }
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setEditingUser(null);
-    setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'admin' });
+    setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'institution' });
   };
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>Gestion de Usuarios</h1>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Buscar por apellido o email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ minWidth: '240px' }}
+          />
           <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ minWidth: '200px' }}>
             <option value="">Todos los roles</option>
             {Object.entries(roleLabels).map(([key, label]) => (
@@ -161,6 +174,7 @@ const UsersManagement = () => {
           <p style={{ marginBottom: '1rem', color: 'var(--text-light)' }}>
             Mostrando {users.length} usuario{users.length !== 1 ? 's' : ''}
             {filterRole && ` de tipo "${roleLabels[filterRole]}"`}
+            {search.trim() && ` que coinciden con "${search.trim()}"`}
           </p>
           <table className="data-table">
             <thead>
@@ -192,7 +206,7 @@ const UsersManagement = () => {
               ))}
             </tbody>
           </table>
-          {users.length === 0 && <p>No hay usuarios con ese rol</p>}
+          {users.length === 0 && <p>No hay usuarios con esos criterios</p>}
         </>
       )}
     </div>

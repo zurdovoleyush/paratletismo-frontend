@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { competitionApi, usersApi, tournamentApi } from '../api';
 
 const JudgeAssignments = () => {
@@ -12,6 +12,7 @@ const JudgeAssignments = () => {
   const [selectedJudge, setSelectedJudge] = useState('');
   const [isHead, setIsHead] = useState(false);
   const [assignments, setAssignments] = useState([]);
+  const [updateMsg, setUpdateMsg] = useState('');
 
   useEffect(() => {
     tournamentApi.getTournament(id)
@@ -39,6 +40,17 @@ const JudgeAssignments = () => {
     }
   }, [selectedEvent]);
 
+  const handleUpdateField = async (field, value) => {
+    try {
+      await tournamentApi.updateTournament(id, { ...tournament, [field]: value });
+      const res = await tournamentApi.getTournament(id);
+      setTournament(res.data);
+      setUpdateMsg('Juez principal del torneo actualizado');
+    } catch (err) {
+      alert('Error al actualizar');
+    }
+  };
+
   const handleAssign = async () => {
     if (!selectedEvent || !selectedJudge) return;
     try {
@@ -51,6 +63,7 @@ const JudgeAssignments = () => {
       setIsHead(false);
       const res = await competitionApi.getJudgeAssignments(selectedEvent);
       setAssignments(res.data.results || res.data);
+      setUpdateMsg('Juez asignado a la prueba');
     } catch (err) {
       alert('Error al asignar juez');
     }
@@ -58,10 +71,7 @@ const JudgeAssignments = () => {
 
   const handleRemove = async (assignmentId) => {
     try {
-      await fetch(`/api/competitions/judges/${assignmentId}/`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-      });
+      await competitionApi.deleteJudgeAssignment(assignmentId);
       const res = await competitionApi.getJudgeAssignments(selectedEvent);
       setAssignments(res.data.results || res.data);
     } catch (err) {
@@ -74,18 +84,41 @@ const JudgeAssignments = () => {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Asignar Jueces - {tournament.name}</h1>
+        <div>
+          <h1>Asignar Jueces - {tournament.name}</h1>
+          {updateMsg && <p style={{ color: 'var(--success)', margin: 0 }}>{updateMsg}</p>}
+        </div>
+        <Link to={`/dashboard/tournaments/${id}`} className="btn-secondary">Volver al Torneo</Link>
       </div>
 
       <div className="form-card">
-        <h3>Nueva Asignacion</h3>
+        <h3>Juez Principal del Torneo</h3>
+        <div className="form-group">
+          <select value={tournament.head_judge || ''}
+            onChange={(e) => handleUpdateField('head_judge', e.target.value || null)}>
+            <option value="">Sin asignar</option>
+            {[...headJudges, ...judges].map(j => (
+              <option key={j.id} value={j.id}>{j.first_name} {j.last_name} ({j.role_display})</option>
+            ))}
+          </select>
+        </div>
+        {tournament.head_judge && (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+            Juez Principal actual: {[...headJudges, ...judges].find(j => j.id === tournament.head_judge)?.first_name}{' '}
+            {[...headJudges, ...judges].find(j => j.id === tournament.head_judge)?.last_name}
+          </p>
+        )}
+      </div>
+
+      <div className="form-card">
+        <h3>Asignar Juez a Prueba</h3>
         <div className="form-row">
           <div className="form-group">
             <label>Prueba</label>
             <select value={selectedEvent} onChange={(e) => setSelectedEvent(e.target.value)}>
               <option value="">Seleccionar prueba</option>
               {events.map(e => (
-                <option key={e.id} value={e.id}>{e.name} ({e.sex_name} - {e.category_name})</option>
+                <option key={e.id} value={e.id}>{e.name} ({e.sex_name || 'Multiple'} - {e.category_name || 'Multiple'})</option>
               ))}
             </select>
           </div>
@@ -112,7 +145,7 @@ const JudgeAssignments = () => {
 
       {selectedEvent && (
         <div className="form-card">
-          <h3>Jueces Asignados</h3>
+          <h3>Jueces Asignados a: {events.find(e => e.id === selectedEvent)?.name}</h3>
           <table className="data-table">
             <thead>
               <tr>

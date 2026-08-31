@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Entorno local (el .env.production SI se sube: contiene solo la URL publica del backend)
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

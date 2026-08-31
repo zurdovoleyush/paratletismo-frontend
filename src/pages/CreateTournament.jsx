@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { tournamentApi, configApi } from '../api';
+import { useAuth } from '../context/AuthContext';
+import { tournamentApi } from '../api';
 
 const CreateTournament = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -17,32 +19,24 @@ const CreateTournament = () => {
     tournament_end: '',
     registration_fee: '0',
     max_participants: '',
-    disciplines: [],
-    sexes: [],
-    categories: [],
+    max_events_per_athlete: '',
+    organizer: '',
     rules: '',
+    use_bibs: true,
   });
-  const [disciplines, setDisciplines] = useState([]);
-  const [sexes, setSexes] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
 
   useEffect(() => {
-    configApi.getDisciplines().then(res => setDisciplines(res.data.results || res.data)).catch(() => {});
-    configApi.getSexes().then(res => setSexes(res.data.results || res.data)).catch(() => {});
-    configApi.getCategories().then(res => setCategories(res.data.results || res.data)).catch(() => {});
+    tournamentApi.getInstitutions().then(res => setInstitutions(res.data.results || res.data)).catch(() => {});
   }, []);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      const current = formData[name];
-      setFormData({
-        ...formData,
-        [name]: checked ? [...current, value] : current.filter(v => v !== value),
-      });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleToggle = (name, checked) => {
+    setFormData({ ...formData, [name]: checked });
   };
 
   const handleSubmit = async (e) => {
@@ -57,6 +51,7 @@ const CreateTournament = () => {
       } else {
         alert('Error al crear torneo: ' + JSON.stringify(err.response?.data || err.message));
       }
+      console.error('Create tournament error:', err.response?.status, err.response?.data);
     }
   };
 
@@ -119,46 +114,40 @@ const CreateTournament = () => {
           </div>
           <div className="form-group">
             <label>Max Participantes</label>
-            <input type="number" name="max_participants" value={formData.max_participants} onChange={handleChange} />
+            <input type="number" name="max_participants" value={formData.max_participants} onChange={handleChange} min="0" />
           </div>
-        </div>
-        <div className="form-group">
-          <label>Disciplinas</label>
-          <div className="checkbox-group">
-            {disciplines.map(d => (
-              <label key={d.id}>
-                <input type="checkbox" name="disciplines" value={d.id} checked={formData.disciplines.includes(d.id)} onChange={handleChange} />
-                {d.name}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Sexos</label>
-          <div className="checkbox-group">
-            {sexes.map(s => (
-              <label key={s.id}>
-                <input type="checkbox" name="sexes" value={s.id} checked={formData.sexes.includes(s.id)} onChange={handleChange} />
-                {s.name}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Categorias</label>
-          <div className="checkbox-group">
-            {categories.map(c => (
-              <label key={c.id}>
-                <input type="checkbox" name="categories" value={c.id} checked={formData.categories.includes(c.id)} onChange={handleChange} />
-                {c.name}
-              </label>
-            ))}
+          <div className="form-group">
+            <label>Max Pruebas por Atleta</label>
+            <input type="number" name="max_events_per_athlete" value={formData.max_events_per_athlete} onChange={handleChange} min="0" />
+            <small>Dejalo en 0 para que cada atleta pueda inscribirse sin limite de pruebas</small>
           </div>
         </div>
         <div className="form-group">
           <label>Reglamento</label>
           <textarea name="rules" value={formData.rules} onChange={handleChange} rows={4} />
         </div>
+        <div className="form-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={formData.use_bibs !== false}
+              onChange={(e) => handleToggle('use_bibs', e.target.checked)}
+            />
+            Usar pecheras numeradas (dorsales)
+          </label>
+        </div>
+          {user?.role === 'superadmin' && (
+            <div className="form-group">
+              <label>Institucion Organizadora (opcional)</label>
+              <select name="organizer" value={formData.organizer || ''} onChange={handleChange}>
+                <option value="">Sin institucion</option>
+                {institutions.map(inst => (
+                  <option key={inst.id} value={inst.id}>{inst.name}</option>
+                ))}
+              </select>
+              <small>Las instituciones son opcionales y no condicionan la creacion del torneo.</small>
+            </div>
+          )}
         <button type="submit" className="btn-primary">Crear Torneo</button>
       </form>
     </div>

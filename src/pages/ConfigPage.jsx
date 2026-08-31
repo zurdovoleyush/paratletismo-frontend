@@ -3,11 +3,11 @@ import { useParams } from 'react-router-dom';
 import { configApi } from '../api';
 
 const configFields = {
-  disciplines: { title: 'Disciplinas', api: 'getEventTypes', createApi: 'createEventType', updateApi: 'updateEventType', deleteApi: 'deleteEventType' },
+  disciplines: { title: 'Tipos de Prueba', api: 'getDisciplines', createApi: 'createDiscipline', updateApi: 'updateDiscipline', deleteApi: 'deleteDiscipline' },
   sexes: { title: 'Sexos', api: 'getSexes', createApi: 'createSex', updateApi: 'updateSex', deleteApi: 'deleteSex' },
   categories: { title: 'Categorias', api: 'getCategories', createApi: 'createCategory', updateApi: 'updateCategory', deleteApi: 'deleteCategory' },
   classifications: { title: 'Clasificaciones Funcionales', api: 'getClassifications', createApi: 'createClassification', updateApi: 'updateClassification', deleteApi: 'deleteClassification' },
-  'event-types': { title: 'Tipos de Prueba', api: 'getDisciplines', createApi: 'createDiscipline', updateApi: 'updateDiscipline', deleteApi: 'deleteDiscipline' },
+  'event-types': { title: 'Disciplinas', api: 'getEventTypes', createApi: 'createEventType', updateApi: 'updateEventType', deleteApi: 'deleteEventType' },
 };
 
 const ConfigPage = () => {
@@ -28,7 +28,7 @@ const ConfigPage = () => {
     if (type === 'classifications') {
       configApi.getDisciplines().then(res => setDropdownOptions(res.data.results || res.data)).catch(() => {});
     }
-    if (type === 'disciplines') {
+    if (type === 'event-types') {
       configApi.getDisciplines().then(res => setDropdownOptions(res.data.results || res.data)).catch(() => {});
     }
   }, [type]);
@@ -95,11 +95,8 @@ const ConfigPage = () => {
     switch (type) {
       case 'disciplines':
         return [
-          { key: 'name', label: 'Nombre (ej: 100 mts, 200 mts, Lanzamiento de bala)', type: 'text' },
-          { key: 'discipline', label: 'Tipo de Prueba', type: 'select', options: dropdownOptions },
-          { key: 'is_time_based', label: 'Basado en Tiempo', type: 'checkbox' },
-          { key: 'is_distance_based', label: 'Basado en Distancia', type: 'checkbox' },
-          { key: 'unit', label: 'Unidad', type: 'text' },
+          { key: 'name', label: 'Nombre', type: 'text' },
+          { key: 'description', label: 'Descripcion', type: 'textarea' },
         ];
       case 'sexes':
         return [
@@ -117,12 +114,16 @@ const ConfigPage = () => {
         return [
           { key: 'code', label: 'Codigo', type: 'text' },
           { key: 'name', label: 'Nombre', type: 'text' },
-          { key: 'discipline', label: 'Disciplina', type: 'select', options: dropdownOptions },
+          { key: 'discipline', label: 'Tipo de Prueba', type: 'select', options: dropdownOptions },
           { key: 'description', label: 'Descripcion', type: 'textarea' },
         ];
       case 'event-types':
         return [
-          { key: 'name', label: 'Nombre (ej: Velocidad, Campo, Pista)', type: 'text' },
+          { key: 'name', label: 'Nombre (ej: 100 mts, 200 mts, Lanzamiento de bala)', type: 'text' },
+          { key: 'discipline', label: 'Tipo de Prueba', type: 'select', options: dropdownOptions },
+          { key: 'is_time_based', label: 'Basado en Tiempo', type: 'checkbox' },
+          { key: 'is_distance_based', label: 'Basado en Distancia', type: 'checkbox' },
+          { key: 'unit', label: 'Unidad', type: 'text' },
           { key: 'description', label: 'Descripcion', type: 'textarea' },
         ];
       default:

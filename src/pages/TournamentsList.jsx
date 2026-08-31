@@ -12,27 +12,28 @@ const TournamentsList = () => {
   const [editingTournament, setEditingTournament] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const isSuper = user?.role === 'superadmin';
 
-  useEffect(() => {
-    tournamentApi.getTournaments(filter ? { status: filter } : {})
+  const loadTournaments = () => {
+    const params = filter ? { status: filter } : {};
+    if (user?.role === 'institution') {
+      params.admin_user = user.id;
+    }
+    return tournamentApi.getTournaments(params)
       .then(res => setTournaments(res.data.results || res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [filter]);
+  };
 
-  const handleStatusChange = async (id, currentStatus) => {
-    const transitions = {
-      draft: 'registration_open',
-      registration_open: 'registration_closed',
-      registration_closed: 'in_progress',
-      in_progress: 'completed',
-    };
-    const next = transitions[currentStatus];
-    if (!next) return;
+  useEffect(() => {
+    loadTournaments();
+  }, [filter, user?.role, user?.id]);
+
+  const handleStatusChange = async (id, newStatus) => {
+    if (!newStatus) return;
     try {
-      await tournamentApi.updateStatus(id, next);
-      const res = await tournamentApi.getTournaments(filter ? { status: filter } : {});
-      setTournaments(res.data.results || res.data);
+      await tournamentApi.updateStatus(id, newStatus);
+      await loadTournaments();
     } catch (err) {
       alert('Error al cambiar estado');
     }
@@ -71,8 +72,7 @@ const TournamentsList = () => {
       setShowEditForm(false);
       setEditingTournament(null);
       setEditFormData({});
-      const res = await tournamentApi.getTournaments(filter ? { status: filter } : {});
-      setTournaments(res.data.results || res.data);
+      await loadTournaments();
     } catch (err) {
       const errors = err.response?.data;
       if (typeof errors === 'object') {
@@ -83,12 +83,14 @@ const TournamentsList = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (t) => {
     if (!confirm('Estas seguro de eliminar este torneo? Esta accion no se puede deshacer.')) return;
+    if (t.has_marks) {
+      if (!confirm('ATENCION: este torneo tiene marcas y resultados cargados. Se eliminara TODO (marcas, resultados, inscripciones y pruebas) de forma definitiva. ¿Confirma la eliminacion?')) return;
+    } else if (!confirm('Ultima confirmacion: se eliminara el torneo y todos sus datos asociados. ¿Confirma?')) return;
     try {
-      await tournamentApi.deleteTournament(id);
-      const res = await tournamentApi.getTournaments(filter ? { status: filter } : {});
-      setTournaments(res.data.results || res.data);
+      await tournamentApi.deleteTournament(t.id);
+      await loadTournaments();
     } catch (err) {
       const errors = err.response?.data;
       if (typeof errors === 'object') {
@@ -96,6 +98,15 @@ const TournamentsList = () => {
       } else {
         alert('Error al eliminar torneo');
       }
+    }
+  };
+
+  const handleToggleActive = async (t) => {
+    try {
+      await tournamentApi.updateTournament(t.id, { is_active: !t.is_active });
+      await loadTournaments();
+    } catch (err) {
+      alert('Error al cambiar el estado de actividad del torneo');
     }
   };
 
@@ -135,26 +146,58 @@ const TournamentsList = () => {
                 <p><strong>Fin:</strong> {new Date(t.tournament_end).toLocaleDateString()}</p>
                 <p><strong>Organizador:</strong> {t.organizer_name}</p>
               </div>
-              <span className={`badge badge-${t.status}`}>{statusLabels[t.status]}</span>
+              <div className="tournament-status">
+                <span className={`badge badge-${t.status}`}>{statusLabels[t.status]}</span>
+                {t.payment_status === 'pending' && (
+                  <span className="badge badge-pending">Pendiente de Pago</span>
+                )}
+                {t.is_active === false && (
+                  <span className="badge badge-inactive">Inactivo</span>
+                )}
+                {(t.admin_user === user?.id || user?.role === 'superadmin') && (
+                  <select
+                    className="status-select"
+                    value={t.status}
+                    onChange={(e) => handleStatusChange(t.id, e.target.value)}
+                    title="Cambiar estado del torneo (podes corregirlo cuando quieras)"
+                  >
+                    {Object.keys(statusLabels).map(s => (
+                      <option key={s} value={s}>{statusLabels[s]}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
               <div className="tournament-actions">
-                <Link to={`/tournaments/${t.id}`} className="btn-secondary">Ver Detalles</Link>
-                {isAdmin && t.admin_user === user?.id && (
+                {t.admin_user === user?.id || user?.role === 'superadmin' ? (
                   <>
-                    {t.status !== 'completed' && t.status !== 'cancelled' && (
-                      <button className="btn-sm" onClick={() => handleStatusChange(t.id, t.status)}>
-                        Cambiar Estado
-                      </button>
+                    <Link to={`/dashboard/tournaments/${t.id}`} className="tournament-btn btn-primary">Administrar</Link>
+                    <Link to={`/dashboard/tournaments/${t.id}/events`} className="tournament-btn btn-secondary">Pruebas</Link>
+                    <Link to={`/tournaments/${t.id}`} className="tournament-btn btn-secondary">Pagina</Link>
+                    <button className="tournament-btn btn-secondary" onClick={() => handleEdit(t)}>Editar</button>
+                    {t.has_marks && !isSuper ? (
+                      <>
+                        <button className="tournament-btn btn-secondary" onClick={() => handleToggleActive(t)}>
+                          {t.is_active ? 'Marcar Inactivo' : 'Reactivar'}
+                        </button>
+                        <span className="has-marks-hint" title="Este torneo tiene marcas cargadas y no puede eliminarse, las marcas de los atletas se conservan.">
+                          Marcas cargadas
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {t.has_marks && (
+                          <span className="has-marks-hint" title="Solo el superadministrador puede eliminar torneos con marcas.">
+                            Marcas cargadas
+                          </span>
+                        )}
+                        <button className="tournament-btn btn-danger" onClick={() => handleDelete(t)}>Eliminar</button>
+                      </>
                     )}
-                    <button className="btn-sm" onClick={() => handleEdit(t)} style={{ marginLeft: '0.5rem' }}>Editar</button>
-                    <button className="btn-sm btn-danger" onClick={() => handleDelete(t.id)} style={{ marginLeft: '0.5rem' }}>Eliminar</button>
-                    <Link to={`/dashboard/tournaments/${t.id}/events`} className="btn-primary">Gestionar</Link>
                   </>
-                )}
-                {isAdmin && t.admin_user !== user?.id && (
-                  <Link to={`/dashboard/tournaments/${t.id}/events`} className="btn-primary">Gestionar</Link>
-                )}
-                {!isAdmin && (
-                  <Link to={`/tournaments/${t.id}`} className="btn-primary">Inscribirse</Link>
+                ) : isAdmin ? (
+                  <Link to={`/dashboard/tournaments/${t.id}`} className="tournament-btn btn-primary">Administrar</Link>
+                ) : (
+                  <Link to={`/tournaments/${t.id}`} className="tournament-btn btn-primary">Inscribirse</Link>
                 )}
               </div>
             </div>

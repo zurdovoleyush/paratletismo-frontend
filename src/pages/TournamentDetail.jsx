@@ -12,8 +12,10 @@ const TournamentDetail = () => {
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [eventAthletes, setEventAthletes] = useState({});
   const [showEventAthletes, setShowEventAthletes] = useState(null);
-  const [selectedEventForReg, setSelectedEventForReg] = useState('');
   const [selectedAthleteForReg, setSelectedAthleteForReg] = useState('');
+  const [justRegisteredAthlete, setJustRegisteredAthlete] = useState(null);
+  const [eligibleEvents, setEligibleEvents] = useState([]);
+  const [registeringEvents, setRegisteringEvents] = useState({});
   const [loading, setLoading] = useState(true);
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   const canRegister = ['institution', 'coach', 'athlete'].includes(user?.role);
@@ -78,7 +80,15 @@ const TournamentDetail = () => {
     if (!selectedAthleteForReg) return;
     try {
       await competitionApi.createRegistration({ tournament: id, athlete: selectedAthleteForReg });
-      alert('Inscripcion al torneo realizada con exito');
+      const athlete = athletes.find(a => a.id === selectedAthleteForReg);
+      if (athlete) {
+        setJustRegisteredAthlete(athlete);
+        const optsRes = await competitionApi.getAthleteRegistrationOptions(selectedAthleteForReg);
+        const opts = optsRes.data;
+        const thisTournament = opts.tournaments?.find(t => t.tournament.id === id);
+        setEligibleEvents((thisTournament?.eligible_events || []).filter(e => !e.is_registered));
+      }
+      alert('El atleta fue inscripto al torneo');
       setSelectedAthleteForReg('');
       const res = await competitionApi.getMyRegistrations();
       setMyRegistrations(res.data.results || res.data);
@@ -94,16 +104,10 @@ const TournamentDetail = () => {
 
   const handleRegisterEvent = async (eventId, athleteId) => {
     if (!eventId || !athleteId) return;
+    setRegisteringEvents(prev => ({ ...prev, [eventId]: true }));
     try {
-      await fetch(`/api/competitions/events/${eventId}/register-athlete/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify({ athlete: athleteId, tournament_event: eventId }),
-      });
-      alert('Atleta inscripto en la prueba');
+      await competitionApi.createAthleteEvent(eventId, { athlete: athleteId, tournament_event: eventId });
+      setEligibleEvents(prev => prev.filter(e => e.id !== eventId));
       loadEventAthletes(eventId);
     } catch (err) {
       const errors = err.response?.data;
@@ -112,6 +116,8 @@ const TournamentDetail = () => {
       } else {
         alert('Error al inscribir atleta en prueba');
       }
+    } finally {
+      setRegisteringEvents(prev => ({ ...prev, [eventId]: false }));
     }
   };
 
@@ -186,7 +192,7 @@ const TournamentDetail = () => {
         </div>
 
         <div className="detail-section">
-          <h2>Disciplinas</h2>
+          <h2>Tipos de Prueba</h2>
           <div className="tags">
             {tournament.disciplines_list?.map((d, i) => <span key={i} className="tag">{d}</span>)}
           </div>
@@ -206,6 +212,43 @@ const TournamentDetail = () => {
                 Inscribir en Torneo
               </button>
             </div>
+          </div>
+        )}
+
+        {justRegisteredAthlete && eligibleEvents.length > 0 && (
+          <div className="detail-section">
+            <h2>Pruebas disponibles para: {justRegisteredAthlete.user_name}</h2>
+            <p style={{ color: 'var(--text-light)', marginBottom: '1rem' }}>
+              Selecciona las pruebas en las que deseas inscribir al atleta
+            </p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Prueba</th>
+                  <th>Sexo</th>
+                  <th>Categoria</th>
+                  <th>Clasif.</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eligibleEvents.map(e => (
+                  <tr key={e.id}>
+                    <td><strong>{e.name}</strong></td>
+                    <td>{e.sex_name || 'Multiple'}</td>
+                    <td>{e.category_name || 'Multiple'}</td>
+                    <td>{e.classifications_list?.join(', ') || e.classification_code || 'Libre'}</td>
+                    <td>
+                      <button className="btn-sm btn-success"
+                        onClick={() => handleRegisterEvent(e.id, justRegisteredAthlete.id)}
+                        disabled={registeringEvents[e.id]}>
+                        {registeringEvents[e.id] ? 'Inscribiendo...' : 'Inscribir'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -235,7 +278,7 @@ const TournamentDetail = () => {
                     <td>{e.event_type_name}</td>
                     <td>{e.sex_name}</td>
                     <td>{e.category_name}</td>
-                    <td>{e.classification_code || 'Libre'}</td>
+                    <td>{e.classifications_list?.join(', ') || e.classification_code || 'Libre'}</td>
                     <td>{e.scheduled_date ? new Date(e.scheduled_date).toLocaleString() : '-'}</td>
                     <td><span className={`badge badge-${e.status}`}>{e.status}</span></td>
                     {canRegister && (

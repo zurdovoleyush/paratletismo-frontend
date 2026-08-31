@@ -25,8 +25,12 @@ const PublicTournaments = () => {
     <div className="public-page">
       <header className="public-header">
         <h1>🏅 Paratletismo - Torneos</h1>
-        <nav>
-          <Link to="/login">Iniciar Sesion</Link>
+        <nav className="public-nav">
+          <Link to="/records" className="nav-btn">🥇 Records</Link>
+          <Link to="/results/en-curso" className="nav-btn">Resultados en Curso</Link>
+          <Link to="/results/finalizados" className="nav-btn">Resultados Finalizados</Link>
+          <Link to="/login" className="nav-btn nav-btn-primary">Iniciar Sesion</Link>
+          <Link to="/register" className="nav-link-plain">Registrarse</Link>
         </nav>
       </header>
       <main className="public-content">
