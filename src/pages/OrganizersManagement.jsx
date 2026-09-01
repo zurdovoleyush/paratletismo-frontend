@@ -9,16 +9,17 @@ const OrganizersManagement = () => {
   const [paymentForm, setPaymentForm] = useState({ amount: '', valid_from: '', valid_until: '', notes: '' });
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadData();
-  }, [showInactive]);
+  }, [showInactive, search]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [instRes, payRes] = await Promise.all([
-        tournamentApi.getManageInstitutions(showInactive),
+        tournamentApi.getManageInstitutions(showInactive, search),
         tournamentApi.getOrganizationPayments(),
       ]);
       setInstitutions(instRes.data?.results || instRes.data || []);
@@ -97,7 +98,14 @@ const OrganizersManagement = () => {
         <h1>Gestion de Organizadores</h1>
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="Buscar institucion por nombre..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', minWidth: '240px' }}
+        />
         <label style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <input
             type="checkbox"
