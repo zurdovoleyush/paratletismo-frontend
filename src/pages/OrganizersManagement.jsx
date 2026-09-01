@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { tournamentApi } from '../api';
 
 const OrganizersManagement = () => {
@@ -10,16 +10,24 @@ const OrganizersManagement = () => {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
 
   useEffect(() => {
     loadData();
-  }, [showInactive, search]);
+  }, [showInactive, debouncedSearch]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [instRes, payRes] = await Promise.all([
-        tournamentApi.getManageInstitutions(showInactive, search),
+        tournamentApi.getManageInstitutions(showInactive, debouncedSearch),
         tournamentApi.getOrganizationPayments(),
       ]);
       setInstitutions(instRes.data?.results || instRes.data || []);
@@ -90,8 +98,6 @@ const OrganizersManagement = () => {
 
   const instPayments = (instId) => payments.filter(p => p.institution === instId);
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
     <div className="page">
       <div className="page-header">
@@ -148,6 +154,9 @@ const OrganizersManagement = () => {
         </div>
       )}
 
+      {loading ? (
+        <p>Cargando...</p>
+      ) : (
       <table className="data-table">
         <thead>
           <tr>
@@ -235,6 +244,7 @@ const OrganizersManagement = () => {
           ))}
         </tbody>
       </table>
+      )}
 
       <style>{`
         .modal-overlay {
