@@ -27,6 +27,10 @@ const CreateTournament = () => {
   const [institutions, setInstitutions] = useState([]);
 
   useEffect(() => {
+    if (user?.role === 'institution' && !user?.can_organize) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
     tournamentApi.getInstitutions().then(res => setInstitutions(res.data.results || res.data)).catch(() => {});
   }, []);
 

@@ -67,6 +67,9 @@ const Layout = () => {
   };
 
   let items = menuItems[user?.role] || [];
+  if (user?.role === 'institution' && !user?.can_organize) {
+    items = items.filter(i => i.path !== '/dashboard/tournaments/new');
+  }
 
   return (
     <div className="app-layout">
